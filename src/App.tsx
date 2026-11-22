@@ -13,19 +13,18 @@ import type {
   ShiftSettings,
   WorkMode,
 } from './types/attendance';
+import {
+  apiClockIn,
+  apiClockOut,
+  apiCreateEmployee,
+  apiCreateLeave,
+  apiDeleteEmployee,
+  apiManualAttendance,
+  apiSaveSettings,
+  apiUpdateLeaveStatus,
+  fetchBootstrap as loadBootstrapData,
+} from './utils/attendanceClient';
 import { buildAttendanceCsv } from './utils/attendanceRules';
-
-async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || `Permintaan gagal (${res.status})`);
-  }
-  return data as T;
-}
 
 export default function App() {
   const [data, setData] = useState<BootstrapPayload | null>(null);
@@ -41,7 +40,7 @@ export default function App() {
   const fetchBootstrap = useCallback(async () => {
     try {
       setLoadError(null);
-      const payload = await apiRequest<BootstrapPayload>('/api/bootstrap');
+      const payload = await loadBootstrapData();
       setData(payload);
       setActiveEmployeeId((prev) => {
         if (payload.employees.some((e) => e.id === prev)) return prev;
@@ -70,10 +69,7 @@ export default function App() {
   }) {
     setSubmittingClock(true);
     try {
-      await apiRequest('/api/attendance/clock-in', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      await apiClockIn(payload);
       await fetchBootstrap();
     } finally {
       setSubmittingClock(false);
@@ -83,10 +79,7 @@ export default function App() {
   async function handleClockOut(payload: { employeeId: string; notes: string }) {
     setSubmittingClock(true);
     try {
-      await apiRequest('/api/attendance/clock-out', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      await apiClockOut(payload);
       await fetchBootstrap();
     } finally {
       setSubmittingClock(false);
@@ -101,10 +94,7 @@ export default function App() {
     workMode: WorkMode;
     notes: string;
   }) {
-    await apiRequest('/api/attendance/manual', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    await apiManualAttendance(payload);
     await fetchBootstrap();
   }
 
@@ -115,18 +105,12 @@ export default function App() {
     endDate: string;
     reason: string;
   }) {
-    await apiRequest('/api/leaves', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    await apiCreateLeave(payload);
     await fetchBootstrap();
   }
 
   async function handleUpdateLeaveStatus(id: string, status: 'disetujui' | 'ditolak') {
-    await apiRequest(`/api/leaves/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
+    await apiUpdateLeaveStatus(id, status);
     await fetchBootstrap();
   }
 
@@ -137,10 +121,7 @@ export default function App() {
     department: string;
     email: string;
   }) {
-    const res = await apiRequest<{ employee: { id: string } }>('/api/employees', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const res = await apiCreateEmployee(payload);
     await fetchBootstrap();
     if (res.employee?.id) {
       setActiveEmployeeId(res.employee.id);
@@ -148,15 +129,12 @@ export default function App() {
   }
 
   async function handleDeleteEmployee(id: string) {
-    await apiRequest(`/api/employees/${id}`, { method: 'DELETE' });
+    await apiDeleteEmployee(id);
     await fetchBootstrap();
   }
 
   async function handleSaveSettings(next: ShiftSettings) {
-    await apiRequest('/api/settings', {
-      method: 'PUT',
-      body: JSON.stringify(next),
-    });
+    await apiSaveSettings(next);
     await fetchBootstrap();
   }
 
