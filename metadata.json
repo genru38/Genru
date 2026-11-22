@@ -1,0 +1,6 @@
+{
+  "name": "PresensiKu — Sistem Absensi Karyawan",
+  "description": "Platform manajemen absensi karyawan real-time dengan pencatatan jam masuk/pulang, pengajuan izin dan cuti, direktori tim, serta ekspor laporan kehadiran.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
